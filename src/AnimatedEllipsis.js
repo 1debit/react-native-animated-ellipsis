@@ -1,84 +1,80 @@
-import React, { Component }    from 'react';
-import { Text, Animated }      from 'react-native';
-import PropTypes               from 'prop-types';
-
+import React, { Component } from 'react';
+import { Text, Animated } from 'react-native';
+import PropTypes from 'prop-types';
 
 export default class AnimatedEllipsis extends Component {
-  static propTypes = {
-    numberOfDots: PropTypes.number,
-    animationDelay: PropTypes.number,
-    minOpacity: PropTypes.number,
-    style: Text.propTypes.style,
-  };
+	constructor(props) {
+		super(props);
 
-  static defaultProps = {
-    numberOfDots: 3,
-    animationDelay: 300,
-    minOpacity: 0,
-    style: {
-      color: '#aaa',
-      fontSize: 32,
-    }
-  };
+		this._animation_state = {
+			dot_opacities: this.initializeDots(),
+			target_opacity: 1,
+			should_animate: true,
+		};
+	}
 
-  constructor(props) {
-    super(props);
+	initializeDots() {
+		let opacities = [];
 
-    this._animation_state = {
-      dot_opacities: this.initializeDots(),
-      target_opacity: 1,
-      should_animate: true,
-    };
-  }
+		for (let i = 0; i < this.props.numberOfDots; i++) {
+			let dot = new Animated.Value(this.props.minOpacity);
+			opacities.push(dot);
+		}
 
-  initializeDots() {
-    let opacities = [];
+		return opacities;
+	}
 
-    for (let i = 0; i < this.props.numberOfDots; i++) {
-      let dot = new Animated.Value(this.props.minOpacity);
-      opacities.push(dot);
-    }
+	componentDidMount() {
+		this.animate_dots.bind(this)(0);
+	}
 
-    return opacities;
-  }
+	componentWillUnmount() {
+		this._animation_state.should_animate = false;
+	}
 
-  componentDidMount() {
-    this.animate_dots.bind(this)(0);
-  }
+	animate_dots(which_dot) {
+		if (!this._animation_state.should_animate) return;
 
-  componentWillUnmount() {
-    this._animation_state.should_animate = false;
-  }
+		// swap fade direction when we hit end of list
+		if (which_dot >= this._animation_state.dot_opacities.length) {
+			which_dot = 0;
+			let min = this.props.minOpacity;
+			this._animation_state.target_opacity =
+				this._animation_state.target_opacity == min ? 1 : min;
+		}
 
-  animate_dots(which_dot) {
-    if (!this._animation_state.should_animate) return;
+		let next_dot = which_dot + 1;
 
-    // swap fade direction when we hit end of list
-    if (which_dot >= this._animation_state.dot_opacities.length) {
-      which_dot = 0;
-      let min = this.props.minOpacity;
-      this._animation_state.target_opacity =
-        this._animation_state.target_opacity == min ? 1 : min;
-    }
+		Animated.timing(this._animation_state.dot_opacities[which_dot], {
+			toValue: this._animation_state.target_opacity,
+			duration: this.props.animationDelay,
+		}).start(this.animate_dots.bind(this, next_dot));
+	}
 
-    let next_dot = which_dot + 1;
+	render() {
+		let dots = this._animation_state.dot_opacities.map((o, i) =>
+			React.createElement(
+				Animated.Text,
+				{ key: i, style: { opacity: o }, allowFontScaling: false },
+				' .',
+			),
+		);
 
-    Animated.timing(this._animation_state.dot_opacities[which_dot], {
-      toValue: this._animation_state.target_opacity,
-      duration: this.props.animationDelay,
-    }).start(this.animate_dots.bind(this, next_dot));
-  }
-
-  render () {
-    let dots = this._animation_state.dot_opacities.map((o, i) =>
-      <Animated.Text key={i} style={{ opacity: o }}> .</Animated.Text>
-    );
-
-    return (
-      <Text style={this.props.style}>
-        {dots}
-      </Text>
-    );
-  }
+		return React.createElement(Text, { style: this.props.style }, dots);
+	}
 }
-
+AnimatedEllipsis.propTypes = {
+	numberOfDots: PropTypes.number,
+	animationDelay: PropTypes.number,
+	minOpacity: PropTypes.number,
+	style: Text.propTypes.style,
+};
+AnimatedEllipsis.defaultProps = {
+	numberOfDots: 3,
+	animationDelay: 300,
+	minOpacity: 0,
+	style: {
+		color: '#aaa',
+		fontSize: 32,
+	},
+};
